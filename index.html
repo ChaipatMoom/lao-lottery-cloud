@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lao Lottery Cloud - Pro</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e5e7eb; margin: 0; padding: 20px; }
+        .card { max-width: 700px; margin: auto; background: #1e293b; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { text-align: center; color: #38bdf8; }
+        .status-badge { background: #334155; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; display: inline-block; margin-bottom: 20px; }
+        textarea { width: 100%; height: 100px; background: #0f172a; border: 1px solid #334155; color: #38bdf8; padding: 10px; border-radius: 10px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; margin-top: 10px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-import { background: #22c55e; color: #052e16; }
+        .btn-gen { background: #38bdf8; color: #082f49; font-size: 1.1rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 10px; margin-top: 25px; }
+        .num-item { background: #334155; padding: 12px 5px; text-align: center; border-radius: 8px; font-weight: bold; border-bottom: 3px solid #38bdf8; }
+        .loading { color: #f59e0b; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h1>🎯 Lao Lottery Cloud</h1>
+    <div style="text-align:center">
+        <div class="status-badge" id="data-status">กำลังเชื่อมต่อฐานข้อมูล...</div>
+    </div>
+
+    <label>📥 วางผลหวยย้อนหลัง (คัดลอกมาวางได้เลย)</label>
+    <textarea id="bulkInput" placeholder="ตัวอย่าง: 085 123 456 789..."></textarea>
+    <button class="btn-import" onclick="importToCloud()">บันทึกข้อมูลเข้าระบบ Cloud</button>
+
+    <hr style="border:0; border-top:1px solid #334155; margin:30px 0;">
+
+    <button class="btn-gen" onclick="generateSmart()">สุ่มเลขเด็ด 100 ชุด</button>
+    <div id="result" class="grid"></div>
+</div>
+
+<script>
+    // Firebase Config จากที่คุณให้มา
+    const firebaseConfig = {
+        apiKey: "AIzaSyBSBP6thMiBi9Jnz663XiWBzDnVgcwTZ0Y",
+        authDomain: "lao-lottery-app.firebaseapp.com",
+        databaseURL: "https://lao-lottery-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "lao-lottery-app",
+        storageBucket: "lao-lottery-app.firebasestorage.app",
+        messagingSenderId: "5669085764",
+        appId: "1:5669085764:web:6b79b5bc41cc0ae7151211",
+        measurementId: "G-4VXM6R9C43"
+    };
+
+    // เริ่มการทำงาน Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ฟังการเปลี่ยนแปลงข้อมูลในฐานข้อมูลแบบ Real-time
+    db.ref('history').on('value', (snapshot) => {
+        const count = snapshot.numChildren();
+        document.getElementById('data-status').innerHTML = `🟢 Cloud Online: <b>${count}</b> งวดในระบบ`;
+    });
+
+    // ฟังก์ชันดึงเลขจากข้อความแล้วบันทึก
+    function importToCloud() {
+        const text = document.getElementById('bulkInput').value;
+        const found = text.match(/\d{3}/g); // ค้นหาเลข 3 หลักทั้งหมด
+
+        if (!found) {
+            alert("ไม่พบเลข 3 หลักในข้อความที่วาง");
+            return;
+        }
+
+        if (confirm(`พบเลขทั้งหมด ${found.length} งวด ยืนยันการบันทึกใช่หรือไม่?`)) {
+            found.forEach(num => {
+                db.ref('history').push({
+                    number: num,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                });
+            });
+            document.getElementById('bulkInput').value = "";
+            alert("บันทึกข้อมูลเรียบร้อย!");
+        }
+    }
+
+    // ฟังก์ชันสุ่มเลขฉลาดๆ
+    async function generateSmart() {
+        document.getElementById('result').innerHTML = "<p class='loading'>กำลังประมวลผลสถิติ...</p>";
+        
+        const snapshot = await db.ref('history').limitToLast(100).once('value');
+        const historyData = [];
+        snapshot.forEach(child => { historyData.push(child.val().number); });
+
+        const pool = new Set();
+        while (pool.size < 100) {
+            const n = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            
+            // กฎ 1: ไม่เอาเลขตอง
+            if (n[0] === n[1] && n[1] === n[2]) continue;
+            
+            // กฎ 2: ถ้ามีในประวัติ ให้มีโอกาสสุ่มผ่านแค่ 20% (เลี่ยงเลขซ้ำ)
+            if (historyData.includes(n) && Math.random() > 0.2) continue;
+
+            pool.add(n);
+        }
+
+        renderResult([...pool]);
+    }
+
+    function renderResult(list) {
+        const container = document.getElementById('result');
+        container.innerHTML = list.map(n => `<div class="num-item">${n}</div>`).join('');
+    }
+</script>
+
+</body>
+</html>
