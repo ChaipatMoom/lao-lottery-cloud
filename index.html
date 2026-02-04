@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lao Lottery Cloud - Pro</title>
+    <title>Lao Lottery Cloud - Pro Statistics</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
@@ -14,10 +14,18 @@
         textarea { width: 100%; height: 100px; background: #0f172a; border: 1px solid #334155; color: #38bdf8; padding: 10px; border-radius: 10px; box-sizing: border-box; }
         button { width: 100%; padding: 15px; margin-top: 10px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-import { background: #22c55e; color: #052e16; }
-        .btn-gen { background: #38bdf8; color: #082f49; font-size: 1.1rem; }
+        .btn-gen { background: #38bdf8; color: #082f49; font-size: 1.1rem; margin-bottom: 20px; }
+        
+        /* สไตล์ส่วนสถิติ */
+        .hot-container { background: #0f172a; padding: 15px; border-radius: 15px; margin-top: 20px; border: 1px dashed #38bdf8; }
+        .hot-title { font-size: 0.9rem; color: #fbbf24; margin-bottom: 10px; text-transform: uppercase; font-weight: bold; }
+        .hot-grid { display: flex; justify-content: space-around; gap: 10px; }
+        .hot-item { text-align: center; background: #1e293b; padding: 10px; border-radius: 10px; flex: 1; border: 1px solid #334155; }
+        .hot-num { display: block; font-size: 1.2rem; color: #38bdf8; font-weight: bold; }
+        .hot-count { font-size: 0.7rem; color: #94a3b8; }
+
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 10px; margin-top: 25px; }
         .num-item { background: #334155; padding: 12px 5px; text-align: center; border-radius: 8px; font-weight: bold; border-bottom: 3px solid #38bdf8; }
-        .loading { color: #f59e0b; }
     </style>
 </head>
 <body>
@@ -25,11 +33,16 @@
 <div class="card">
     <h1>🎯 Lao Lottery Cloud</h1>
     <div style="text-align:center">
-        <div class="status-badge" id="data-status">กำลังเชื่อมต่อฐานข้อมูล...</div>
+        <div class="status-badge" id="data-status">กำลังเชื่อมต่อ...</div>
     </div>
 
-    <label>📥 วางผลหวยย้อนหลัง (คัดลอกมาวางได้เลย)</label>
-    <textarea id="bulkInput" placeholder="ตัวอย่าง: 085 123 456 789..."></textarea>
+    <div class="hot-container" id="hot-section" style="display:none;">
+        <div class="hot-title">🔥 5 อันดับเลขออกบ่อย (Top 5 Hot)</div>
+        <div class="hot-grid" id="hot-list"></div>
+    </div>
+
+    <label style="display:block; margin-top:20px;">📥 เพิ่มข้อมูล (วางเลข 3 ตัว)</label>
+    <textarea id="bulkInput" placeholder="ตัวอย่าง: 085 123 456..."></textarea>
     <button class="btn-import" onclick="importToCloud()">บันทึกข้อมูลเข้าระบบ Cloud</button>
 
     <hr style="border:0; border-top:1px solid #334155; margin:30px 0;">
@@ -39,7 +52,7 @@
 </div>
 
 <script>
-    // Firebase Config จากที่คุณให้มา
+    // Firebase Config
     const firebaseConfig = {
         apiKey: "AIzaSyBSBP6thMiBi9Jnz663XiWBzDnVgcwTZ0Y",
         authDomain: "lao-lottery-app.firebaseapp.com",
@@ -51,42 +64,53 @@
         measurementId: "G-4VXM6R9C43"
     };
 
-    // เริ่มการทำงาน Firebase
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ฟังการเปลี่ยนแปลงข้อมูลในฐานข้อมูลแบบ Real-time
+    // ฟังข้อมูลและคำนวณ Top 5 ทันทีที่มีการเปลี่ยนแปลง
     db.ref('history').on('value', (snapshot) => {
-        const count = snapshot.numChildren();
-        document.getElementById('data-status').innerHTML = `🟢 Cloud Online: <b>${count}</b> งวดในระบบ`;
+        const data = snapshot.val();
+        if (!data) return;
+
+        const historyArray = Object.values(data).map(item => item.number);
+        document.getElementById('data-status').innerHTML = `🟢 Cloud Online: <b>${historyArray.length}</b> งวด`;
+        
+        calculateTop5(historyArray);
     });
 
-    // ฟังก์ชันดึงเลขจากข้อความแล้วบันทึก
-    function importToCloud() {
-        const text = document.getElementById('bulkInput').value;
-        const found = text.match(/\d{3}/g); // ค้นหาเลข 3 หลักทั้งหมด
+    function calculateTop5(numbers) {
+        const counts = {};
+        numbers.forEach(num => counts[num] = (counts[num] || 0) + 1);
 
-        if (!found) {
-            alert("ไม่พบเลข 3 หลักในข้อความที่วาง");
-            return;
-        }
+        // จัดลำดับและดึงแค่ Top 5
+        const sorted = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5);
 
-        if (confirm(`พบเลขทั้งหมด ${found.length} งวด ยืนยันการบันทึกใช่หรือไม่?`)) {
-            found.forEach(num => {
-                db.ref('history').push({
-                    number: num,
-                    createdAt: firebase.database.ServerValue.TIMESTAMP
-                });
-            });
-            document.getElementById('bulkInput').value = "";
-            alert("บันทึกข้อมูลเรียบร้อย!");
+        if (sorted.length > 0) {
+            document.getElementById('hot-section').style.display = 'block';
+            const hotList = document.getElementById('hot-list');
+            hotList.innerHTML = sorted.map(([num, count]) => `
+                <div class="hot-item">
+                    <span class="hot-num">${num}</span>
+                    <span class="hot-count">ออก ${count} ครั้ง</span>
+                </div>
+            `).join('');
         }
     }
 
-    // ฟังก์ชันสุ่มเลขฉลาดๆ
+    function importToCloud() {
+        const text = document.getElementById('bulkInput').value;
+        const found = text.match(/\d{3}/g);
+        if (!found) return alert("ไม่พบเลข 3 หลัก");
+
+        found.forEach(num => {
+            db.ref('history').push({ number: num, createdAt: firebase.database.ServerValue.TIMESTAMP });
+        });
+        document.getElementById('bulkInput').value = "";
+    }
+
     async function generateSmart() {
-        document.getElementById('result').innerHTML = "<p class='loading'>กำลังประมวลผลสถิติ...</p>";
-        
         const snapshot = await db.ref('history').limitToLast(100).once('value');
         const historyData = [];
         snapshot.forEach(child => { historyData.push(child.val().number); });
@@ -94,24 +118,8 @@
         const pool = new Set();
         while (pool.size < 100) {
             const n = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-            
-            // กฎ 1: ไม่เอาเลขตอง
             if (n[0] === n[1] && n[1] === n[2]) continue;
-            
-            // กฎ 2: ถ้ามีในประวัติ ให้มีโอกาสสุ่มผ่านแค่ 20% (เลี่ยงเลขซ้ำ)
-            if (historyData.includes(n) && Math.random() > 0.2) continue;
-
+            if (historyData.includes(n) && Math.random() > 0.1) continue;
             pool.add(n);
         }
-
-        renderResult([...pool]);
-    }
-
-    function renderResult(list) {
-        const container = document.getElementById('result');
-        container.innerHTML = list.map(n => `<div class="num-item">${n}</div>`).join('');
-    }
-</script>
-
-</body>
-</html>
+        document.getElementById('result
