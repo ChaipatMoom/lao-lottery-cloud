@@ -3,38 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lao Lottery Cloud - Pro Statistics</title>
+    <title>Lao Lottery Cloud - Pro</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e5e7eb; margin: 0; padding: 20px; }
         .card { max-width: 700px; margin: auto; background: #1e293b; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         h1 { text-align: center; color: #38bdf8; }
         .status-badge { background: #334155; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; display: inline-block; margin-bottom: 20px; }
-        textarea { width: 100%; height: 100px; background: #0f172a; border: 1px solid #334155; color: #38bdf8; padding: 10px; border-radius: 10px; box-sizing: border-box; outline: none; }
-        textarea:focus { border-color: #38bdf8; }
+        textarea { width: 100%; height: 100px; background: #0f172a; border: 1px solid #334155; color: #38bdf8; padding: 10px; border-radius: 10px; box-sizing: border-box; outline: none; margin-bottom: 10px; }
         button { width: 100%; padding: 15px; margin-top: 10px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-import { background: #22c55e; color: #052e16; }
-        .btn-undo { background: #64748b; color: white; font-size: 0.8rem; padding: 10px; }
-        .btn-gen { background: #38bdf8; color: #082f49; font-size: 1.1rem; margin-bottom: 20px; }
-        
-        /* สไตล์ส่วนสถิติ */
-        .hot-container { background: #0f172a; padding: 15px; border-radius: 15px; margin-top: 20px; border: 1px dashed #38bdf8; }
-        .hot-title { font-size: 0.9rem; color: #fbbf24; margin-bottom: 10px; text-transform: uppercase; font-weight: bold; }
+        .btn-undo { background: #64748b; color: white; font-size: 0.9rem; }
+        .btn-gen { background: #38bdf8; color: #082f49; font-size: 1.1rem; margin-top: 30px; }
+        .hot-container { background: #0f172a; padding: 15px; border-radius: 15px; margin: 20px 0; border: 1px dashed #38bdf8; }
+        .hot-title { font-size: 0.9rem; color: #fbbf24; margin-bottom: 10px; font-weight: bold; }
         .hot-grid { display: flex; justify-content: space-around; gap: 10px; flex-wrap: wrap; }
         .hot-item { text-align: center; background: #1e293b; padding: 10px; border-radius: 10px; flex: 1; min-width: 80px; border: 1px solid #334155; }
-        .hot-num { display: block; font-size: 1.2rem; color: #38bdf8; font-weight: bold; }
-        .hot-count { font-size: 0.7rem; color: #94a3b8; }
-
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 10px; margin-top: 25px; }
-        .num-item { background: #334155; padding: 12px 5px; text-align: center; border-radius: 8px; font-weight: bold; border-bottom: 3px solid #38bdf8; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* ปรับแต่ง SweetAlert2 Dark Mode */
+        .num-item { background: #334155; padding: 12px 5px; text-align: center; border-radius: 8px; font-weight: bold; border-bottom: 3px solid #38bdf8; }
         .swal2-popup { background: #1e293b !important; color: #e5e7eb !important; border-radius: 20px !important; }
-        .swal2-title, .swal2-html-container { color: #e5e7eb !important; }
     </style>
 </head>
 <body>
@@ -50,19 +39,16 @@
         <div class="hot-grid" id="hot-list"></div>
     </div>
 
-    <label style="display:block; margin-top:20px;">📥 เพิ่มข้อมูล (วางเลข 3 ตัว)</label>
+    <label style="display:block; margin-bottom:8px;">📥 เพิ่มข้อมูล (วางเลข 3 ตัว)</label>
     <textarea id="bulkInput" placeholder="ตัวอย่าง: 085 123 456..."></textarea>
     <button class="btn-import" onclick="importToCloud()">บันทึกข้อมูลเข้าระบบ Cloud</button>
     <button class="btn-undo" onclick="deleteLastEntry()">ลบรายการล่าสุดที่บันทึก</button>
-
-    <hr style="border:0; border-top:1px solid #334155; margin:30px 0;">
 
     <button class="btn-gen" onclick="generateSmart()">สุ่มเลขเด็ด 100 ชุด</button>
     <div id="result" class="grid"></div>
 </div>
 
 <script>
-    // --- Firebase Configuration ---
     const firebaseConfig = {
         apiKey: "AIzaSyBSBP6thMiBi9Jnz663XiWBzDnVgcwTZ0Y",
         authDomain: "lao-lottery-app.firebaseapp.com",
@@ -77,11 +63,10 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ฟังข้อมูล Real-time
     db.ref('history').on('value', (snapshot) => {
         const data = snapshot.val();
         if (!data) {
-            document.getElementById('data-status').innerHTML = `🟢 Cloud Online: <b>0</b> งวด`;
+            document.getElementById('data-status').innerHTML = `🟢 Cloud Online: 0 งวด`;
             document.getElementById('hot-section').style.display = 'none';
             return;
         }
@@ -90,64 +75,47 @@
         calculateTop5(historyArray);
     });
 
-    // คำนวณเลขออกบ่อย
     function calculateTop5(numbers) {
         const counts = {};
         numbers.forEach(num => counts[num] = (counts[num] || 0) + 1);
         const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
         if (sorted.length > 0) {
             document.getElementById('hot-section').style.display = 'block';
             document.getElementById('hot-list').innerHTML = sorted.map(([num, count]) => `
-                <div class="hot-item">
-                    <span class="hot-num">${num}</span>
-                    <span class="hot-count">ออก ${count} ครั้ง</span>
-                </div>
+                <div class="hot-item"><span style="color:#38bdf8; font-weight:bold; display:block;">${num}</span><span style="font-size:0.7rem;">${count} ครั้ง</span></div>
             `).join('');
         }
     }
 
-    // บันทึกข้อมูล
     async function importToCloud() {
         const text = document.getElementById('bulkInput').value;
         const found = text.match(/\d{3}/g);
-
         if (!found) {
-            Swal.fire({
-                icon: 'error',
-                title: 'ไม่พบข้อมูล',
-                text: 'กรุณาใส่เลข 3 หลักในช่องว่างก่อนกดบันทึก',
-                confirmButtonColor: '#ef4444'
-            });
+            Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูล', text: 'กรุณาใส่เลข 3 หลัก' });
             return;
         }
-
-        const result = await Swal.fire({
-            title: 'ยืนยันการบันทึก?',
-            text: `พบเลขทั้งหมด ${found.length} งวด คุณต้องการบันทึกใช่หรือไม่?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#22c55e',
-            cancelButtonColor: '#334155',
-            confirmButtonText: 'ตกลง',
-            cancelButtonText: 'ยกเลิก'
-        });
-
+        const result = await Swal.fire({ title: 'ยืนยันการบันทึก?', text: `พบเลข ${found.length} งวด`, icon: 'question', showCancelButton: true });
         if (result.isConfirmed) {
-            found.forEach(num => {
-                db.ref('history').push({ number: num, createdAt: firebase.database.ServerValue.TIMESTAMP });
-            });
+            found.forEach(num => db.ref('history').push({ number: num, createdAt: firebase.database.ServerValue.TIMESTAMP }));
             document.getElementById('bulkInput').value = "";
-            Swal.fire({ icon: 'success', title: 'สำเร็จ!', timer: 1500, showConfirmButton: false });
+            Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false });
         }
     }
 
-    // สุ่มเลขเด็ด
+    async function deleteLastEntry() {
+        const snapshot = await db.ref('history').limitToLast(1).once('value');
+        if (!snapshot.exists()) return;
+        const result = await Swal.fire({ title: 'ลบรายการล่าสุด?', icon: 'warning', showCancelButton: true });
+        if (result.isConfirmed) {
+            snapshot.forEach(child => child.ref.remove());
+            Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1500, showConfirmButton: false });
+        }
+    }
+
     async function generateSmart() {
         const snapshot = await db.ref('history').limitToLast(100).once('value');
         const historyData = [];
         snapshot.forEach(child => { historyData.push(child.val().number); });
-
         const pool = new Set();
         while (pool.size < 100) {
             const n = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
@@ -156,26 +124,6 @@
             pool.add(n);
         }
         document.getElementById('result').innerHTML = [...pool].map(n => `<div class="num-item">${n}</div>`).join('');
-    }
-
-    // ลบรายการล่าสุด
-    async function deleteLastEntry() {
-        const snapshot = await db.ref('history').limitToLast(1).once('value');
-        if (!snapshot.exists()) return;
-
-        const result = await Swal.fire({
-            title: 'ลบรายการล่าสุด?',
-            text: "คุณต้องการลบข้อมูลชุดล่าสุดที่เพิ่งบันทึกใช่หรือไม่?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            confirmButtonText: 'ใช่, ลบเลย!'
-        });
-
-        if (result.isConfirmed) {
-            snapshot.forEach(child => child.ref.remove());
-            Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย!', timer: 1500, showConfirmButton: false });
-        }
     }
 </script>
 </body>
