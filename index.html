@@ -105,7 +105,7 @@
     async function deleteLastEntry() {
         const snapshot = await db.ref('history').limitToLast(1).once('value');
         if (!snapshot.exists()) return;
-        const result = await Swal.fire({ title: 'ลบรายการล่าสุด?', icon: 'warning', showCancelButton: true });
+        const result = await Swal.fire({ title: 'ลบรายการล่าสุด?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
         if (result.isConfirmed) {
             snapshot.forEach(child => child.ref.remove());
             Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย', timer: 1500, showConfirmButton: false });
