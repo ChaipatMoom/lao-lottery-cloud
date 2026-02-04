@@ -18,8 +18,8 @@
         button { width: 100%; padding: 15px; margin-top: 10px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .btn-import { background: #22c55e; color: #052e16; }
         .btn-import:hover { background: #16a34a; }
+        .btn-undo { background: #64748b; color: white; font-size: 0.8rem; padding: 10px; }
         .btn-gen { background: #38bdf8; color: #082f49; font-size: 1.1rem; margin-bottom: 20px; }
-        .btn-gen:hover { background: #0ea5e9; }
         
         .hot-container { background: #0f172a; padding: 15px; border-radius: 15px; margin-top: 20px; border: 1px dashed #38bdf8; }
         .hot-title { font-size: 0.9rem; color: #fbbf24; margin-bottom: 10px; text-transform: uppercase; font-weight: bold; }
@@ -32,7 +32,6 @@
         .num-item { background: #334155; padding: 12px 5px; text-align: center; border-radius: 8px; font-weight: bold; border-bottom: 3px solid #38bdf8; animation: fadeIn 0.3s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* ปรับแต่ง SweetAlert2 Dark Mode */
         .swal2-popup { background: #1e293b !important; color: #e5e7eb !important; border-radius: 20px !important; }
         .swal2-title, .swal2-html-container { color: #e5e7eb !important; }
     </style>
@@ -53,7 +52,7 @@
     <label style="display:block; margin-top:20px;">📥 เพิ่มข้อมูล (วางเลข 3 ตัว)</label>
     <textarea id="bulkInput" placeholder="ตัวอย่าง: 085 123 456..."></textarea>
     <button class="btn-import" onclick="importToCloud()">บันทึกข้อมูลเข้าระบบ Cloud</button>
-    <button style="background: #64748b; color: white; font-size: 0.8rem; padding: 10px;" onclick="deleteLastEntry()">ลบรายการล่าสุดที่บันทึก</button>
+    <button class="btn-undo" onclick="deleteLastEntry()">ลบรายการล่าสุดที่บันทึก</button>
 
     <hr style="border:0; border-top:1px solid #334155; margin:30px 0;">
 
@@ -80,6 +79,7 @@
         const data = snapshot.val();
         if (!data) {
             document.getElementById('data-status').innerHTML = `🟢 Cloud Online: <b>0</b> งวด`;
+            document.getElementById('hot-section').style.display = 'none';
             return;
         }
         const historyArray = Object.values(data).map(item => item.number);
@@ -119,12 +119,12 @@
 
         const result = await Swal.fire({
             title: 'ยืนยันการบันทึก?',
-            text: `พบเลขทั้งหมด ${found.length} งวด คุณต้องการบันทึกเข้าระบบใช่หรือไม่?`,
+            text: `พบเลขทั้งหมด ${found.length} งวด คุณต้องการบันทึกใช่หรือไม่?`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonColor: '#22c55e',
             cancelButtonColor: '#334155',
-            confirmButtonText: 'ตกลง, บันทึกเลย!',
+            confirmButtonText: 'ตกลง',
             cancelButtonText: 'ยกเลิก'
         });
 
@@ -133,13 +133,7 @@
                 db.ref('history').push({ number: num, createdAt: firebase.database.ServerValue.TIMESTAMP });
             });
             document.getElementById('bulkInput').value = "";
-            Swal.fire({
-                icon: 'success',
-                title: 'สำเร็จ!',
-                text: `บันทึกข้อมูล ${found.length} งวดเรียบร้อยแล้ว`,
-                timer: 2000,
-                showConfirmButton: false
-            });
+            Swal.fire({ icon: 'success', title: 'สำเร็จ!', timer: 1500, showConfirmButton: false });
         }
     }
 
@@ -155,27 +149,26 @@
             if (historyData.includes(n) && Math.random() > 0.1) continue;
             pool.add(n);
         }
-        
+        document.getElementById('result').innerHTML = [...pool].map(n => `<div class="num-item">${n}</div>`).join('');
+    }
+
     async function deleteLastEntry() {
         const snapshot = await db.ref('history').limitToLast(1).once('value');
         if (!snapshot.exists()) return;
 
         const result = await Swal.fire({
-           title: 'ลบรายการล่าสุด?',
-           text: "คุณต้องการลบข้อมูลชุดล่าสุดที่เพิ่งบันทึกใช่หรือไม่?",
-           icon: 'warning',
-           showCancelButton: true,
-           confirmButtonColor: '#ef4444',
-           cancelButtonText: 'ยกเลิก',
-           confirmButtonText: 'ใช่, ลบเลย!'
-    });
+            title: 'ลบรายการล่าสุด?',
+            text: "คุณต้องการลบข้อมูลชุดล่าสุดที่เพิ่งบันทึกใช่หรือไม่?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'ใช่, ลบเลย!'
+        });
 
-       if (result.isConfirmed) {
-          snapshot.forEach(child => child.ref.remove());
-          Swal.fire('ลบแล้ว!', 'ลบข้อมูลล่าสุดเรียบร้อย', 'success');
-     }
-}
-        document.getElementById('result').innerHTML = [...pool].map(n => `<div class="num-item">${n}</div>`).join('');
+        if (result.isConfirmed) {
+            snapshot.forEach(child => child.ref.remove());
+            Swal.fire({ icon: 'success', title: 'ลบเรียบร้อย!', timer: 1500, showConfirmButton: false });
+        }
     }
 </script>
 </body>
