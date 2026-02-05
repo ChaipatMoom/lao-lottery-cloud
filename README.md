@@ -1,2 +1,2 @@
-# lao-lottery-cloud
+# lao-lottery
 หวยลาว 3 ตัวตรง 100 ชุด
